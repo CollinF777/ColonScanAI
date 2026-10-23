@@ -219,6 +219,7 @@ __marimo__/
 .vscode
 .idea
 data/
+*.pth
 
 # Streamlit
 .streamlit/secrets.toml
