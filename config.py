@@ -74,7 +74,7 @@ IMAGE_SIZE = 224
 SEED = 42
 
 # Split fraction, how much of train_val is being held out for validation
-VAL_FRAC = 0.15
+VAL_FRAC = 0.2
 
 # Has PyTorch use a NVIDIA GPU for math if you have one, if not then CPU
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
