@@ -1,69 +1,112 @@
-'''
-Cameron this is your part
-This is for dataset loading
-Basically file listing, train/validation splits, PyTorch Datasets, and image transforms are going to be in here
-
-I did the imports youll need and check the comments as Im trying to be very thorough with what we need
-You should use the comments as a point of reference and you can delete them when you've done each section
-'''
-# This is for getting the files
+# data loading - file listing, train/val split, dataset, transforms
 import os
-# Youll use random to split the images into training and validation groups randomly
 import random
-# PIL is an Imaging library, Image is going to let you open and manipulate files
 from PIL import Image
 
-'''
-So you are going to make a dataset in the file 
-A dataset is a collection of examples the model can learn from
-So it will contain an image and its correct label for ours
-'''
 from torch.utils.data import Dataset
-'''
-Transforms are very important for this file
-They provide the tools for changing images into the format the model is exprecting
-This is important because our model cant just recieve a filename, it needs the image data in a numerical format
-'''
 from torchvision import transforms
 
-from config import IMAGE_SIZE, IMAGENET_MEAN, IMAGENET_STD
+from config import IMAGE_SIZE, IMAGENET_MEAN, IMAGENET_STD, SEED
 
-'''
-You should first have a class ColonCancerDataset(Dataset) here
-Its mean to load the file paths and labels + apply transforms on access
-The class should have three methods
-def __init__ which has params file_paths, labels, and transform=None. This is just a constructor
-def __len__ which should just return length of the number of file_paths
-def__getitem__ which has param idx where idx is the index of the item you want, it reterives one item from the dataset
-__getitem__ should open the file and convert to RGB, get the label, and transform if needed. It should return the image and label
-'''
+# skip non image files like .DS_Store
+IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff")
 
-'''
-After you should have a function build_file_list which has params data_dir and classes
-It should walk the dataset folder and return file_paths and labels
-It should only read folders that match our classes, nothing extra
-It should also give each class a numerical label label_idx user enumerate when looping
-It should find the current class folder, then list all the files in that folder and append them to our file_paths, the label should also be saved
-After all that it should return the file_paths and labels
-'''
+#-----
 
-'''
-Up next is a function called something like train_val_split 
-It would have params file_paths, labels, and val_frac=0.2
-This function should split one combined list into training and validation sets
-you should make a combined variable from the file_paths and labels then shuffle them to make it random
-After that you should then calculate the number of validation images and create the validation set as well as the training set
-Make sure you also make a helper unzip inner function that converts the list of image-label pairs back to separate lists and 
-return the unzipped training and validation sets
-'''
+class ColonCancerDataset(Dataset):
+    # holds paths + labels, images only opened when accessed
 
-'''
-Finally down here you should do your transformations 
-The training should get some light augmentation to help the model generalize
-Validation set should only get resized and normalized
+    def __init__(self, file_paths, labels, transform=None):
+        self.file_paths = file_paths
+        self.labels = labels
+        self.transform = transform
 
-So the train transform should be resized, then have a random horizonal flip and random rotation
-then it can be made a Tensor and normalized with the mean and std
+    def __len__(self):
+        return len(self.file_paths)
 
-The eval transform should just be resized, made a tensor, and normalized
-'''
+    def __getitem__(self, idx):
+        # force rgb so every image has 3 channels
+        # with closes the file, avoids too many open files over long runs
+        with Image.open(self.file_paths[idx]) as img:
+            image = img.convert("RGB")
+        label = self.labels[idx]
+
+        if self.transform:
+            image = self.transform(image)
+
+        return image, label
+
+#-----
+
+def build_file_list(data_dir, classes):
+    # only reads folders in classes so lung folders get ignored
+    # label = index in classes (colon_n 0, colon_aca 1)
+    file_paths, labels = [], []
+
+    for label_idx, class_name in enumerate(classes):
+        class_dir = os.path.join(data_dir, class_name)
+
+        if not os.path.isdir(class_dir):
+            raise FileNotFoundError(f"missing folder: {class_dir}, check data layout")
+
+        # sorted so order is same on every machine
+        for file_name in sorted(os.listdir(class_dir)):
+            if file_name.lower().endswith(IMAGE_EXTENSIONS):
+                file_paths.append(os.path.join(class_dir, file_name))
+                labels.append(label_idx)
+
+    return file_paths, labels
+
+#-----
+
+def train_val_split(file_paths, labels, val_frac=0.2, seed=SEED):
+    # pair paths w labels so they stay together during shuffle
+    combined = list(zip(file_paths, labels))
+    # seeded so everyone gets same split
+    rng = random.Random(seed)
+
+    # stratified - split each class separately so val has same class ratio as train
+    train_set, val_set = [], []
+    for label in sorted(set(labels)):
+        class_pairs = [pair for pair in combined if pair[1] == label]
+        rng.shuffle(class_pairs)
+        n_val = int(len(class_pairs) * val_frac)
+        val_set.extend(class_pairs[:n_val])
+        train_set.extend(class_pairs[n_val:])
+
+    # reshuffle so classes arent in blocks
+    rng.shuffle(train_set)
+    rng.shuffle(val_set)
+
+    def unzip(pairs):
+        # list of (path, label) back to 2 lists
+        paths = [path for path, _ in pairs]
+        pair_labels = [label for _, label in pairs]
+        return paths, pair_labels
+
+    train_paths, train_labels = unzip(train_set)
+    val_paths, val_labels = unzip(val_set)
+
+    return train_paths, train_labels, val_paths, val_labels
+
+#-----
+
+# train gets light augmentation to help generalize
+# tissue has no up/down so flips + 90 deg turns are free, no black corners like small angles leave
+train_transform = transforms.Compose([
+    transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
+    transforms.RandomHorizontalFlip(),
+    transforms.RandomVerticalFlip(),
+    transforms.RandomChoice([transforms.RandomRotation((angle, angle)) for angle in (0, 90, 180, 270)]),
+    # stain color varies a lot slide to slide (pale pink vs deep purple), mild jitter so model learns structure not stain
+    transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.02),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
+])
+
+# val/test just resize + normalize, no randomness
+eval_transform = transforms.Compose([
+    transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
+])

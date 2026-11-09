@@ -223,3 +223,4 @@ data/
 
 # Streamlit
 .streamlit/secrets.toml
+/untitled folder
