@@ -223,3 +223,7 @@ data/
 
 # Streamlit
 .streamlit/secrets.toml
+/untitled folder
+
+# Mac Users ewwwww
+.DS_Store
