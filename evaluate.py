@@ -54,7 +54,7 @@ class ClinicalEvaluator:
         plt.xlabel("Predicted label")
         plt.ylabel("True label")
         plt.title("Confusion Matrix")
-        plt.tight_layout()  #Ensures the labels fit within frame and dont get cut off
+        plt.tight_layout()  #Ensures the labels fit within frame and don't get cut off
         plt.show()
 
         return{"precision": precision, "recall": recall, "f1": f1, "confusion_matrix": cm}
