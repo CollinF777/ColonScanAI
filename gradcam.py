@@ -14,6 +14,8 @@ import matplotlib.pyplot as plt
 from PIL import Image
 
 import torch
+from pip._internal.models import target_python
+
 '''
 This is for importing the GradCAM class from pytorch_grad_cam
 Its a class the generates a heatmap using information from the models gradients and internal
@@ -27,10 +29,57 @@ This import brings in a helper function that overlays the heatmap onto the origi
 This is much better than seeing the heatmap and image on their own 
 '''
 from pytorch_grad_cam.utils.image import show_cam_on_image
-
 from config import DEVICE, IMAGE_SIZE, CLASSES
-# uncomment when cameron is done
-# from data import eval_transform
+from data import eval_transform
+
+def build_gradcam(model):
+    target_layers = [model.layer4[-1]]
+    return GradCAM(model = model, target_layers = target_layers)
+
+def show_gradcam(model, cam, image_path, true_label_idx):
+    model.eval()
+
+    image = Image.open(image_path).convert('RGB')
+    input_tensor = eval_transform(image).unsqueeze(0).to(DEVICE)
+    grayscale_cam = cam(input_tensor = input_tensor) [0, :]
+
+    rgb_image = image.resize((IMAGE_SIZE, IMAGE_SIZE))
+    rgb_image = np.array(rgb_image).astype(np.float32) / 255.0
+
+    #overlays heatmap over the image
+    overlay = show_cam_on_image(rgb_image, grayscale_cam, use_rgb=True)
+
+    #models prediction
+    with torch.no_grad():
+        scores = model(input_tensor)
+    pred_idk = scores.argmax(dim = 1).item()
+    confidence = torch.softmax(scores, dim = 1)[0, pred_idk].item()
+
+    #shows both the original and Grad-CAM
+    plt.figure(figsize = (10,5))
+
+    plt.subplot(1, 2, 1)
+    plt.imshow(rgb_image)
+    plt.title('Original Image')
+
+    plt.subplot(1, 2, 2)
+    plt.imshow(overlay)
+    plt.title(f"Grad-CAM: {confidence:.1%}")
+
+    plt.tight_layout()
+    plt.show()
+
+def show_gradcam_samples(model, test_paths, test_labels, num_samples = 3):
+    cam = build_gradcam(model)
+
+    #picks random test image
+    num_samples = min(num_samples, len(test_paths))
+    sample_indices = random.sample(range(len(test_paths)), num_samples)
+
+    #shows the grad cam for each test image
+    for i in sample_indices:
+        show_gradcam(model, cam, test_paths[i], test_labels[i])
+
 
 '''
 To start you need a simple build_gradcam function that has model as a param

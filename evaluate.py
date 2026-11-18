@@ -29,8 +29,9 @@ class ClinicalEvaluator:
         recall = recall_score(y_true, y_pred, pos_label=pos_label)
         f1 = f1_score(y_true, y_pred, pos_label=pos_label)
 
-        #Precision = how often prediction is correct, Recall = of flagged positives and negatives how many are actually positive
-        #F1 = is what evaluates the quality of the predictions
+        #Precision = of the images predicted as cancer, how many really are
+        #Recall = of the images that are cancer, how many the model caught
+        #F1 = is what evaluates the quality of the predictions using both precision and recall, a score for the model
         print(f"Clinical Metrics (positive = {class_names[pos_label]})\n")
         print(f"Precision: {precision:.4f}")
         print(f"Recall: {recall:.4f}")
@@ -38,9 +39,10 @@ class ClinicalEvaluator:
         print()
 
         print("Caution: Recall is the most important here.")
-        print("Every false negative, \nor missed positive, is a case of benign cancer. Which could be left untreated.\n")
+        print("Every false negative, \nor missed positive, is a case of cancer that the model determined "
+              "as benign. Which could be left untreated.\n")
 
-        #Creating heatmap using confusion matrix
+        #Creating table using confusion matrix
         cm = confusion_matrix(y_true, y_pred)   #calculates how many images fall into each category (Predicted and true)
 
         plt.figure(figsize=(6, 5))
