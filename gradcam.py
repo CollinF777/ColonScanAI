@@ -2,6 +2,7 @@ import random
 import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
+import os
 
 import torch
 
@@ -33,7 +34,7 @@ def show_gradcam(model, cam, image_path, true_label_idx):
     # Since the backbone is frozen we need to specify this so we dont lose our gradients which could cause an error
     # this might not cause an error but I wanted to be safe
     input_tensor.requires_grad_(True)
-    grayscale_cam = cam(input_tensor = input_tensor) [0, :]
+    grayscale_cam = cam(input_tensor = input_tensor, targets = None) [0, :]
 
     rgb_image = image.resize((IMAGE_SIZE, IMAGE_SIZE))
     rgb_image = np.array(rgb_image).astype(np.float32) / 255.0
@@ -53,7 +54,7 @@ def show_gradcam(model, cam, image_path, true_label_idx):
     plt.subplot(1, 2, 1)
     plt.imshow(rgb_image)
     # Show the true label so the plot can be compared against the prediction
-    plt.title(f'Original Image (pred: {CLASSES[true_label_idx]}')
+    plt.title(f'Original Image (pred: {CLASSES[true_label_idx]})')
 
     plt.subplot(1, 2, 2)
     plt.imshow(overlay)
@@ -61,6 +62,12 @@ def show_gradcam(model, cam, image_path, true_label_idx):
     plt.title(f"Grad-CAM: (pred: {CLASSES[pred_idx]}, {confidence:.1%})")
 
     plt.tight_layout()
+
+    # Save our 3 random images for future ref
+    os.makedirs("gradcam_outputs", exist_ok = True)
+    name = os.path.splitext(os.path.basename(image_path))[0]
+    plt.savefig(f"gradcam_outputs/{name}_gradcam.png", dpi=150)
+
     plt.show()
 
 def show_gradcam_samples(model, test_paths, test_labels, num_samples = 3):
