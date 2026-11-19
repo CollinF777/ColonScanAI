@@ -227,3 +227,5 @@ data/
 
 # Mac Users ewwwww
 .DS_Store
+
+gradcam_outputs
