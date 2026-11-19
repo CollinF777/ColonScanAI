@@ -12,7 +12,7 @@ Each folder should contain colon_aca/ and colon_n/ subfolders
 So you should have train and test folders then those below that
 You can delete the lung folders but if you didnt theyll be ignored anywatds
 '''
-TRAINVAL_DIR = "./data/trainval" # Train and validation images, this should be split in data.py whoever is doing that
+TRAINVAL_DIR = "./data/train_val" # Train and validation images, this should be split in data.py whoever is doing that
 TEST_DIR = "./data/test" # Held out test images
 '''
 Dont worry too much about this model path
