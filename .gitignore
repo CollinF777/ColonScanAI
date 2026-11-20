@@ -229,3 +229,4 @@ data/
 .DS_Store
 
 gradcam_outputs
+training_history.json
